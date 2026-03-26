@@ -14,6 +14,7 @@ Ez a fejezet az x86-64 Assembly tanulás fundamentuma. Nem írunk még futó kó
 2. [A számítógép felépítése Assembly szemszögből](#2-a-számítógép-felépítése-assembly-szemszögből)
 3. [Számrendszerek](#3-számrendszerek)
 4. [x86-64 regiszterek teljes áttekintése](#4-x86-64-regiszterek-teljes-áttekintése)
+   - [Részletes magyarázat →](regiszterek-reszletes.md)
 5. [Adattípusok és méretek](#5-adattípusok-és-méretek)
 6. [Gyakorlatok](#6-gyakorlatok)
 7. [Ellenőrizd magad](#7-ellenőrizd-magad)
@@ -80,23 +81,23 @@ Assembly programozáshoz elég egy leegyszerűsített modell. Nem kell mikroarch
 ┌─────────────────────────────────────────────────────┐
 │                        CPU                          │
 │  ┌──────────────┐    ┌──────────────────────────┐   │
-│  │  Regiszterek │    │       ALU / FPU           │   │
-│  │  (registers) │    │  (aritmetika, logika)     │   │
+│  │  Regiszterek │    │       ALU / FPU          │   │
+│  │  (registers) │    │  (aritmetika, logika)    │   │
 │  │  ~16 × 64bit │    └──────────────────────────┘   │
 │  └──────────────┘    ┌──────────────────────────┐   │
-│  ┌──────────────┐    │   Vezérlőegység (CU)      │   │
-│  │  Cache       │    │   (Fetch-Decode-Execute)  │   │
+│  ┌──────────────┐    │   Vezérlőegység (CU)     │   │
+│  │  Cache       │    │   (Fetch-Decode-Execute) │   │
 │  │  L1/L2/L3    │    └──────────────────────────┘   │
 │  └──────────────┘                                   │
-└──────────────────────────┬──────────────────────────┘
-                           │  Busz (bus)
-          ┌────────────────┼────────────────┐
-          │                │                │
-   ┌──────┴──────┐  ┌──────┴──────┐  ┌─────┴──────┐
-   │   Memória   │  │    I/O      │  │  Merevlemez │
-   │   (RAM)     │  │ (billentyű, │  │  (storage)  │
-   │  byte-ok    │  │  képernyő)  │  │             │
-   └─────────────┘  └─────────────┘  └────────────┘
+└────────────────────────┬────────────────────────────┘
+                         │  Busz (bus)
+         ┌───────────────┼───────────────┐
+         │               │               │
+   ┌─────┴─────┐   ┌─────┴─────┐   ┌────┴──────┐
+   │  Memória  │   │    I/O    │   │ Merevlemez│
+   │   (RAM)   │   │(billentyű,│   │ (storage) │
+   │  byte-ok  │   │ képernyő) │   │           │
+   └───────────┘   └───────────┘   └───────────┘
 ```
 
 **CPU (Central Processing Unit):** Utasításokat hajt végre. Tartalmaz regisztereket (kis, ultra-gyors tárolók), az ALU-t (aritmetikai-logikai egység), és a vezérlőegységet.
@@ -114,14 +115,15 @@ Az adat és a program ugyanabban a memóriában tárolódik, bájtos formában. 
 Ez a CPU alapritmusának neve. Minden utasítás végrehajtása három fázison megy át:
 
 ```
-┌─────────┐     ┌─────────┐     ┌─────────┐
-│  FETCH  │────▶│ DECODE  │────▶│ EXECUTE │
-│ (olvas) │     │(értelmez│     │(végrehajt│
-│ RIP→mem │     │ opcode) │     │ ALU/mem) │
-└─────────┘     └─────────┘     └──────┬──┘
-     ▲                                  │
-     │            RIP += utasítás méret │
-     └──────────────────────────────────┘
+┌──────────┐     ┌──────────┐     ┌──────────┐
+│  FETCH   │────▶│  DECODE  │────▶│ EXECUTE  │
+│  (olvas) │     │ (értel-  │     │ (végrehaj│
+│ RIP→mem  │     │  mezi    │     │  t ALU/  │
+│          │     │  opcode) │     │  mem)    │
+└──────────┘     └──────────┘     └─────┬────┘
+     ▲                                   │
+     │             RIP += utasítás méret │
+     └───────────────────────────────────┘
 ```
 
 1. **Fetch:** A CPU beolvassa a következő utasítást a memóriából. A `RIP` (Instruction Pointer) regiszter mutatja, melyik memóriacímen van a következő utasítás.
@@ -270,13 +272,13 @@ A regiszter a CPU-ban lévő ultra-gyors tárhely. Hozzáférési ideje ~0 ns (a
 Minden 64-bites regiszternek elérhetők kisebb részei visszafelé kompatibilitás miatt:
 
 ```
- 63            31         15     8 7       0
- ┌─────────────┬──────────┬───────┬────────┐
- │             │          │  AH   │   AL   │  ← 8-bites részek
- │             │    AX    │               │  ← 16-bit (AX)
- │             │   EAX              │  ← 32-bit (EAX)
- │            RAX                         │  ← 64-bit (RAX)
- └─────────────────────────────────────────┘
+ 63                    31            15      8  7      0
+ ┌─────────────────────┬─────────────┬───────┬────────┐
+ │                     │             │  AH   │   AL   │  ← 8-bites részek
+ │                     │     AX      ├───────┴────────┤  ← 16-bit (AX)
+ │                     │           EAX                │  ← 32-bit (EAX)
+ │                    RAX                             │  ← 64-bit (RAX)
+ └─────────────────────┴─────────────┴───────┴────────┘
 ```
 
 ### Teljes regiszter táblázat

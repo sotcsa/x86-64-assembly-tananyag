@@ -63,6 +63,19 @@ cmp rax, rbx    ; 3 - 7 = -4 → SF=1, CF=1 (unsigned esetben borrow)
 
 > **💡 Tipp:** A `cmp` operandusai ugyanolyan kombinációban megengedettek, mint a `sub`-nál: reg,reg / reg,imm / mem,reg / reg,mem. Két memória operandus egyszerre nem lehetséges.
 
+### 1.1 CMP vizuális ábra
+
+```text
+cmp rax, rbx  →  rax - rbx = eredmény
+                 ┌─────────────────┐
+                 │  ZF = 1 ha eredmény == 0
+                 │  SF = 1 ha eredmény < 0 (MSB=1)
+                 │  CF = 1 ha unsigned borrow
+                 │  OF = 1 ha signed overflow
+                 └─────────────────┘
+                 Az eredmény ELDOBÁDVA - regiszterek változatlanok!
+```
+
 ### 1.2 A TEST utasítás
 
 ```
@@ -215,6 +228,49 @@ jg  signed_nagyobb  ; signed: -1 > 1? NEM – nem ugrik
 ja  unsigned_nagy   ; unsigned: 0xFFFF...FFFF > 1? IGEN – ugrik!
 ```
 
+### 3.1.5 Vizuális ábra: a "megfordított feltétel" minta
+
+Assembly-ben az `if` feltételét **megfordítva** írjuk: ha a feltétel HAMIS, ugrunk az else ágra.
+
+```
+Java kód:                      Assembly minta (fordított feltétel):
+─────────                      ─────────────────────────────────────
+
+  if (a > b) {                    cmp a, b              ; a - b → flag-ek
+    result = a;                   jle else_ugras         ; ha NEM(a>b) → else
+  } else {                        ; ─── then ág ───
+    result = b;                   mov result, a
+  }                               jmp vege               ; KÖTELEZŐ!
+                                  else_ugras:
+                                  ; ─── else ág ───
+                                  mov result, b
+                                vege:
+                                  ; folytatás...
+
+  FELTÉTEL: a > b              FELTÉTEL MEGFORDÍTVA: a <= b (jle)
+                                Ha HAMIS → ugrik az else ágra
+```
+
+> **Miért fordítjuk meg?** Mert Assembly-ben a végrehajtás **lineáris** – ha nem ugrunk el, "belesétálunk" a then ágba. Ezért a feltétel negáltjával ugrunk az else-re. Ez az **idiomatikus assembly stílus**.
+
+### 3.2 Signed vs Unsigned – mikor melyiket?
+
+Ez az egyik leggyakoribb Assembly hiba-forrás. A Java-ban nincs unsigned integer (kivéve a Java 8+ `Integer.compareUnsigned()`), Assembly-ben viszont a CPU nem tudja, hogy az érték signed vagy unsigned – **te döntöd el**, melyik ugró utasítást használod.
+
+**Példa: ugyanaz a bitminták, más eredmény:**
+```nasm
+mov rax, -1         ; bináris: 1111...1111 (0xFFFFFFFFFFFFFFFF)
+mov rbx, 1          ; bináris: 0000...0001 (0x0000000000000001)
+
+cmp rax, rbx        ; rax - rbx = ?
+
+; Signed értelmezés:   -1 - 1 = -2  →  SF=1, OF=0  →  SF≠OF
+; Unsigned értelmezés: 0xFFFF...FFFF - 1 = 0xFFFF...FFFE  →  CF=0 (nincs borrow)
+
+jg  signed_nagyobb  ; SF=OF? NEM (SF=1, OF=0) → NEM ugrik  ✓ (mert -1 < 1)
+ja  unsigned_nagy   ; CF=0 AND ZF=0? IGEN → UGRIK            ✓ (mert 0xFFFF > 1)
+```
+
 **Ökölszabály:**
 - **Signed** (`jg`, `jl`, `jge`, `jle`): egész számok, ahol negatív értékek lehetségesek (`int`, `long`)
 - **Unsigned** (`ja`, `jb`, `jae`, `jbe`): pointerek, memóriacímek, `size_t`, byte értékek, bitmanipuláció
@@ -240,8 +296,8 @@ if (a > b) {
 
 **Assembly megfelelő (NASM):**
 
-```nasm
-; if_else.asm
+ ```nasm
+ ; if_else.asm
 section .text
 global _start
 
@@ -267,8 +323,8 @@ vege:
     ; rcx most tartalmazza a max(a,b) értéket
     mov rax, 60         ; sys_exit
     mov rdi, rcx        ; kilépési kód = result (ellenőrzés: echo $?)
-    syscall
-```
+     syscall
+ ```
 
 **Fordítás és futtatás:**
 ```bash
@@ -276,6 +332,26 @@ nasm -f elf64 -g -F dwarf if_else.asm -o if_else.o
 ld if_else.o -o if_else
 ./if_else
 echo $?     # 10-et kell kapnunk (max(10, 7) = 10)
+```
+
+### 4.1.1 Vizualis ábra: If-else vezérlés
+
+Java → Assembly a feltétel elágazását: a program eleinte a feltételtől függően ugrik az egyik ágba
+```text
+     cmp rax, rbx
+         │
+    ┌────▼────┐
+    │ rax>rbx?│
+    └────┬────┘
+     NO  │  YES
+    ┌────▼────┐  ┌──────────┐
+    │else_ag  │  │ then_ag  │
+    │rcx=rbx  │  │ rcx=rax  │
+    └────┬────┘  │ jmp vege │──────┐
+         │       └──────────┘      │
+         │                    ┌────▼────┐
+         └────────────────────►  vege   │
+                              └─────────┘
 ```
 
 ### 4.2 Lépésről lépésre magyarázat
@@ -378,6 +454,33 @@ while_vege:
     ; folytatás...
 ```
 
+### 5.1.1 Vizuális ábra: While ciklus
+
+```
+Java:                          Assembly:
+                               ┌─────────────┐
+                               │ mov rcx, 0  │ ← inicializálás
+                               └──────┬──────┘
+while (i < 10) {                     │
+    do_something();          ┌───────▼────────┐
+    i++;                    │ while_eleje:    │
+}                           │   cmp rcx, 10   │ ← feltétel ELEJÉN
+                            │   jge while_vege│
+                            └───────┬────────┘
+                               YES  │  NO
+                              ┌─────▼─────┐
+                              │  ciklus   │
+                              │  törzs:   │
+                              │  inc rcx  │
+                              └─────┬─────┘
+                                    │
+                                    └──────────── vissza feltételhez
+                                    │
+                              ┌─────▼─────┐
+                              │while_vege:│
+                              └───────────┘
+```
+
 **Jellemzők:**
 - Az összehasonlítás a ciklus **elején** van (pre-test loop)
 - Ha a feltétel kezdetben hamis, a törzs egyszer sem fut le (Java `while`-lal azonos viselkedés)
@@ -421,7 +524,35 @@ for_vege:
     syscall
 ```
 
-**Fordítás és futtatás:**
+### 5.2.1 Vizuális ábra: For ciklus
+
+```
+Java:                                Assembly:
+
+for (init; cond; step) {             ┌────────────────┐
+    body;                            │  init:         │
+}                                    │  mov rcx, 1    │
+                                     │  mov rax, 0    │
+                                     └───────┬────────┘
+                                             │
+                                     ┌───────▼────────┐
+                                     │ for_eleje:     │
+                                     │   cmp rcx, 10  │ ← feltétel ELEJÉN
+                                     │   jg for_vege  │
+                                     └───────┬────────┘
+                                        YES  │  NO
+                                     ┌───────▼────────┐
+                                     │   add rax, rcx │ ← body
+                                     │   inc rcx      │ ← step
+                                     │   jmp for_eleje│ ─── vissza feltételhez
+                                     └───────┬────────┘
+                                             │
+                                     ┌───────▼────────┐
+                                     │ for_vege:      │
+                                     └────────────────┘
+```
+
+> **A for = init + while:** A `for (init; cond; step)` Assembly-ben egyszerűen egy `init` + `while (cond) { body; step; }` minta. Nincs külön for utasítás!
 ```bash
 nasm -f elf64 -g -F dwarf osszeg.asm -o osszeg.o
 ld osszeg.o -o osszeg
@@ -485,6 +616,16 @@ do_while:
     ; rax = 55
 ```
 
+### 5.4.1 Vizualis ábra: Do-While
+
+Java: do { body } while (cond);
+Assembly:
+    body
+    … check cond …
+    / \
+   yes  no
+  /      \
+ loop  end
 **Miért hatékonyabb?**
 - Nincs szükség a ciklus elejére visszaugró `jmp`-re
 - Az összehasonlítás a végén van → **egy ugrás kevesebb** ciklusonként
@@ -708,6 +849,35 @@ vege:
 
 **Branch misprediction esetén**: a `jmp` változat 3-4x lassabb lehet véletlenszerű adatokon. A `cmov` változat konstans idejű.
 
+### 7.4 Vizuális összehasonlítás: Branch prediction vs CMOV
+
+```
+Branch (jmp) alapú:                    Branchless (cmov) alapú:
+═══════════════════                    ═══════════════════════════
+
+  cmp rax, rbx                          cmp rax, rbx
+     │                                      │
+     ▼                                      ▼
+  ┌──────────────┐                       ┌──────────────┐
+  │ Branch       │                       │ CMOVcc       │
+  │ Predictor    │                       │ (nincs branch│
+  │ TIPP: melyik │                       │  = nincs     │
+  │ ág lesz?     │                       │  tippelés)   │
+  └──────┬───────┘                       └──────┬───────┘
+         │                                      │
+    ┌────┴────┐                            cmovg rcx, rax  ← mindig végrehajtódik
+    │         │                            cmovle rcx, rbx ← mindig végrehajtódik
+  ELTALÁLTA  ELTÉVESZTETTE                      │
+    │         │                                  ▼
+  ~1 ciklus  ~15-20 ciklus              Konstans: ~1-2 ciklus
+  (gyors!)   (PIPELINE FLUSH!)          (megbízható sebesség)
+```
+
+**Mikor melyiket?**
+- **JMP**: Ha az elágazás megjósolható (pl. ciklus mindig 999-szer fut, 1-szer lép ki)
+- **CMOV**: Ha az adat véletlenszerű / megjósolhatatlan (rendezetlen tömb, felhasználói input)
+
+> **💡 Tipp:** A GCC `-O2` automatikusan `cmov`-ra vált, ha a feltétel megjósolhatatlan. Assembly-ben ezt neked kell eldöntened.
 ### 7.3 Példa: max() és min() CMOVcc-vel
 
 ```nasm
