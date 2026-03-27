@@ -29,9 +29,9 @@ Ez a tananyag legtrükkösebb része. Az x86-64 architektúra **visszafelé komp
 
 ```
  Bitek:  63 .................. 32  31 ............. 16  15 ... 8  7 ... 0
-         ┌──────────────────────────────────────────────────────────────┐
+         ┌─────────────────────────────────────────────────────────────┐
    RAX = │  felső 32 bit          │            EAX                     │  ← 64 bit (x86-64, 2003-)
-         │  (csak RAX-ból érhető) ├─────────────────────────────────────
+         │  (csak RAX-ból érhető) ├────────────────────────────────────┤
          │                        │   felső 16 bit   │      AX         │  ← 32 bit (386, 1985-)
          │                        │   (csak EAX-ból) ├────────┬────────┤
          │                        │                  │   AH   │   AL   │  ← 16 bit (8086, 1978-)
@@ -49,7 +49,7 @@ Mind ugyanarra a fizikai tárhelyre mutatnak — nem másolatok! Ha `AL`-t módo
 RAX = 0xDEADBEEF_CAFEBABE
 
 Ezt így bontjuk szét:
-RAX =  DE AD BE EF  CA FE BA BE     ← mind a 8 bájt (64 bit)
+RAX =  DE AD BE EF CA FE BA BE      ← mind a 8 bájt (64 bit)
 EAX =              CA FE BA BE      ← alsó 4 bájt (32 bit)
  AX =                    BA BE      ← alsó 2 bájt (16 bit)
  AH =                    BA         ← a 2. bájt alulról (bit 15-8)
