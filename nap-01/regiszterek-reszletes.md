@@ -217,19 +217,19 @@ je equal_label    ; ha ZF=1 (tehát rax == rbx), ugorj
 ## Összefoglaló vizuális áttekintés
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  ÁLTALÁNOS CÉLÚ REGISZTEREK (GPR) — mind 64 bit            │
-│                                                             │
-│  Visszatérési érték:  RAX                                   │
+┌───────────────────────────────────────────────────────────┐
+│  ÁLTALÁNOS CÉLÚ REGISZTEREK (GPR) — mind 64 bit           │
+│                                                           │
+│  Visszatérési érték:  RAX                                 │
 │  Függvény arg-ok:     RDI, RSI, RDX, RCX, R8, R9          │
 │  Caller-saved:        RAX, RCX, RDX, RSI, RDI, R8-R11     │
-│  Callee-saved:        RBX, RBP, R12-R15                    │
-│  Stack pointer:       RSP  ⚠️ ne nyúlj hozzá kézzel        │
-│  Base pointer:        RBP                                   │
-├─────────────────────────────────────────────────────────────┤
-│  SPECIÁLIS REGISZTEREK                                      │
-│  Utasításmutató:      RIP  (csak jmp/call/ret módosítja)   │
+│  Callee-saved:        RBX, RBP, R12-R15                   │
+│  Stack pointer:       RSP  ⚠️ ne nyúlj hozzá kézzel       │
+│  Base pointer:        RBP                                 │
+├───────────────────────────────────────────────────────────┤
+│  SPECIÁLIS REGISZTEREK                                    │
+│  Utasításmutató:      RIP  (csak jmp/call/ret módosítja)  │
 │  Jelzőbitek:          RFLAGS  (ZF, CF, SF, OF, PF...)     │
 │  Szegmens:            CS, DS, SS, ES, FS, GS (ignoráld)   │
-└─────────────────────────────────────────────────────────────┘
+└───────────────────────────────────────────────────────────┘
 ```
